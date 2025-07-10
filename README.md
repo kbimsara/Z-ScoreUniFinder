@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI-Based University Search (Z-Score)
 
-## Getting Started
+A Next.js and Tailwind CSS web application with a dark theme, designed to help users search for universities based on z-score rankings. The application leverages AI to process and rank universities using z-scores, derived from criteria such as academic performance, research output, or user preferences. It features a responsive navbar and a form dropdown for user inputs.
 
-First, run the development server:
+## Table of Contents
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Running the Project](#running-the-project)
+- [Project Structure](#project-structure)
+- [License](#license)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+- **AI-Powered Search**: Ranks universities using z-scores calculated from user-selected criteria (e.g., academic scores, research output).
+- **Dark Theme UI**: Built with Tailwind CSS for a sleek, modern, and accessible interface.
+- **Responsive Navbar**: Includes navigation for Home, About, Search, and Contact, with mobile-friendly toggle.
+- **Form Dropdown**: Allows users to select search criteria or filters for university rankings.
+- **Next.js**: Utilizes server-side rendering and static site generation for performance.
+- **Tailwind CSS**: Utility-first CSS framework for customizable and responsive styling.
+
+## Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+- Git
+- (Optional) API key for AI-based data processing (e.g., university data or ranking algorithms)
+
+## Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/kbimsara/Z-ScoreUniFinder.git
+   cd Z-ScoreUniFinder
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+   or
+   ```bash
+   yarn install
+   ```
+3. Set up Tailwind CSS (already configured):
+   - Ensure `tailwind.config.js` and `styles/global.css` are present.
+   - Verify Tailwind directives in `global.css`:
+     ```css
+     @tailwind base;
+     @tailwind components;
+     @tailwind utilities;
+     ```
+4. (Optional) Configure AI API:
+   - Add your AI service API key to a `.env.local` file:
+     ```env
+     NEXT_PUBLIC_AI_API_KEY=your-api-key
+     ```
+   - Update API integration in the codebase as needed.
+
+## Running the Project
+1. Start the development server:
+   ```bash
+   npm run dev
+   ```
+   or
+   ```bash
+   yarn dev
+   ```
+2. Open your browser and navigate to `http://localhost:3000`.
+
+## Project Structure
+```
+Z-ScoreUniFinder/
+├── components/
+│   ├── Navbar.jsx       # Responsive navigation bar
+│   ├── Dropdown.jsx # Dropdown for selecting search criteria
+│   ├── Table.jsx 
+├── app/
+│   ├── page.jsx         # Home page
+│   ├── global.css       # Tailwind CSS and global styles
+|
+├── public/              # Static assets (e.g., university logos)
+├── tailwind.config.js   # Tailwind configuration
+├── .env.local           # Environment variables (e.g., API keys)
+├── package.json
+├── README.md
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Z-Score Explanation
+The application uses z-scores to standardize and rank universities based on user-selected criteria. A z-score measures how many standard deviations a university's score is from the mean for a given metric (e.g., research output). The AI processes data to compute z-scores and present ranked results.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Example
+- Select "Academic Score" in the dropdown.
+- The AI fetches university data, calculates z-scores, and ranks institutions.
+- Results are displayed in a responsive, dark-themed table or list.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+Please ensure code follows the project's ESLint and Prettier configurations.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
