@@ -1,36 +1,58 @@
 'use client'
 
-import Link from 'next/link';
 import { useState } from 'react';
 
 export default function NavBar() {
   const [isOpen, setIsOpen] = useState(false);
 
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+    setIsOpen(false); // Close mobile menu after clicking
+  };
+
   return (
-    <nav className="bg-gray-900 text-white shadow-lg">
+    <nav className="bg-gray-900 text-white shadow-lg fixed w-full top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
-            <Link href="/" className="text-2xl font-bold">
+            <button 
+              onClick={() => scrollToSection('home')}
+              className="text-2xl font-bold hover:text-blue-400 transition cursor-pointer"
+            >
               zFinder
-            </Link>
+            </button>
           </div>
 
           {/* Desktop Menu */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-            <Link href="/" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition">
+            <button 
+              onClick={() => scrollToSection('home')}
+              className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition cursor-pointer"
+            >
               Home
-            </Link>
-            <Link href="/about" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition">
-              About
-            </Link>
-            <Link href="/services" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition">
-              Services
-            </Link>
-            <Link href="/contact" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition">
-              Contact
-            </Link>
+            </button>
+            <button 
+              onClick={() => scrollToSection('ol-results')}
+              className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition cursor-pointer"
+            >
+              O/L Results
+            </button>
+            <button 
+              onClick={() => scrollToSection('al-results')}
+              className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition cursor-pointer"
+            >
+              A/L Results
+            </button>
+            <button 
+              onClick={() => scrollToSection('universities')}
+              className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition cursor-pointer"
+            >
+              Universities
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -60,30 +82,30 @@ export default function NavBar() {
       {isOpen && (
         <div className="sm:hidden" id="mobile-menu">
           <div className="pt-2 pb-3 space-y-1">
-            <Link
-              href="/"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition"
+            <button
+              onClick={() => scrollToSection('home')}
+              className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition cursor-pointer"
             >
               Home
-            </Link>
-            <Link
-              href="/about"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition"
+            </button>
+            <button
+              onClick={() => scrollToSection('ol-results')}
+              className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition cursor-pointer"
             >
-              About
-            </Link>
-            <Link
-              href="/services"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition"
+              O/L Results
+            </button>
+            <button
+              onClick={() => scrollToSection('al-results')}
+              className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition cursor-pointer"
             >
-              Services
-            </Link>
-            <Link
-              href="/contact"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition"
+              A/L Results
+            </button>
+            <button
+              onClick={() => scrollToSection('universities')}
+              className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 transition cursor-pointer"
             >
-              Contact
-            </Link>
+              Universities
+            </button>
           </div>
         </div>
       )}
