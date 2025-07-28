@@ -1,97 +1,144 @@
 # AI-Based University Search (Z-Score)
 
-A Next.js and Tailwind CSS web application with a dark theme, designed to help users search for universities based on z-score rankings. The application leverages AI to process and rank universities using z-scores, derived from criteria such as academic performance, research output, or user preferences. It features a responsive navbar and a form dropdown for user inputs.
+A full-stack application using Next.js frontend and Node.js backend to help users search for universities based on z-score rankings.
 
 ## Table of Contents
 - [Features](#features)
+- [Project Overview](#project-overview)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Running the Project](#running-the-project)
 - [Project Structure](#project-structure)
 - [License](#license)
 
+## Project Overview
+- **Frontend**: Next.js with Tailwind CSS for responsive UI
+- **Backend**: Node.js with Express.js for REST API
+- **Database**: MongoDB for storing university data
+- **Authentication**: JWT-based user authentication
+- **AI Integration**: Z-score calculation and university ranking system
+
 ## Features
-- **AI-Powered Search**: Ranks universities using z-scores calculated from user-selected criteria (e.g., academic scores, research output).
-- **Dark Theme UI**: Built with Tailwind CSS for a sleek, modern, and accessible interface.
-- **Responsive Navbar**: Includes navigation for Home, About, Search, and Contact, with mobile-friendly toggle.
-- **Form Dropdown**: Allows users to select search criteria or filters for university rankings.
-- **Next.js**: Utilizes server-side rendering and static site generation for performance.
-- **Tailwind CSS**: Utility-first CSS framework for customizable and responsive styling.
+### Frontend Features
+- **AI-Powered Search**: Z-score based university rankings
+- **Dark Theme UI**: Modern interface with Tailwind CSS
+- **Responsive Design**: Mobile-friendly navigation
+- **Interactive Forms**: Dynamic search filters and dropdowns
+- **Real-time Updates**: Live search results
+
+### Backend Features
+- **RESTful API**: Express.js based endpoints
+- **Database Operations**: MongoDB CRUD operations
+- **Authentication**: JWT token management
+- **Data Processing**: Z-score calculation algorithms
+- **API Security**: Rate limiting and input validation
 
 ## Prerequisites
 - Node.js (v16 or higher)
+- MongoDB (v6.0 or higher)
 - npm or yarn
 - Git
-- (Optional) API key for AI-based data processing (e.g., university data or ranking algorithms)
 
 ## Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/kbimsara/Z-ScoreUniFinder.git
-   cd Z-ScoreUniFinder
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-   or
-   ```bash
-   yarn install
-   ```
-3. Set up Tailwind CSS (already configured):
-   - Ensure `tailwind.config.js` and `styles/global.css` are present.
-   - Verify Tailwind directives in `global.css`:
-     ```css
-     @tailwind base;
-     @tailwind components;
-     @tailwind utilities;
-     ```
-4. (Optional) Configure AI API:
-   - Add your AI service API key to a `.env.local` file:
-     ```env
-     NEXT_PUBLIC_AI_API_KEY=your-api-key
-     ```
-   - Update API integration in the codebase as needed.
+
+### Frontend Setup
+```bash
+cd front-end
+npm install
+```
+
+### Backend Setup
+```bash
+cd back-end
+npm install
+```
+
+### Environment Configuration
+1. Frontend (.env.local):
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_AI_API_KEY=your-api-key
+```
+
+2. Backend (.env):
+```env
+PORT=5000
+MONGODB_URI=your-mongodb-uri
+JWT_SECRET=your-jwt-secret
+```
 
 ## Running the Project
-1. Start the development server:
-   ```bash
-   npm run dev
-   ```
-   or
-   ```bash
-   yarn dev
-   ```
-2. Open your browser and navigate to `http://localhost:3000`.
+
+### Start Backend Server
+```bash
+cd back-end
+npm run dev
+```
+
+### Start Frontend Development Server
+```bash
+cd front-end
+npm run dev
+```
 
 ## Project Structure
 ```
 Z-ScoreUniFinder/
-├── components/
-│   ├── Navbar.jsx       # Responsive navigation bar
-│   ├── Dropdown.jsx # Dropdown for selecting search criteria
-│   ├── Table.jsx 
-├── app/
-│   ├── page.jsx         # Home page
-│   ├── global.css       # Tailwind CSS and global styles
-|
-├── public/              # Static assets (e.g., university logos)
-├── tailwind.config.js   # Tailwind configuration
-├── .env.local           # Environment variables (e.g., API keys)
-├── package.json
-├── README.md
+├── front-end/
+│   ├── src/
+│   │   ├── app/            # Next.js pages
+│   │   ├── components/     # React components
+│   │   └── styles/        # CSS files
+│   ├── public/            # Static assets
+│   └── package.json
+│
+├── back-end/
+│   ├── src/
+│   │   ├── controllers/   # Request handlers
+│   │   ├── models/       # Database models
+│   │   ├── routes/       # API routes
+│   │   ├── services/     # Business logic
+│   │   └── utils/        # Helper functions
+│   ├── config/          # Configuration files
+│   └── package.json
+│
+└── README.md
 ```
 
-### Z-Score Explanation
-The application uses z-scores to standardize and rank universities based on user-selected criteria. A z-score measures how many standard deviations a university's score is from the mean for a given metric (e.g., research output). The AI processes data to compute z-scores and present ranked results.
+### API Endpoints
+```
+POST   /api/auth/register    # User registration
+POST   /api/auth/login       # User login
+GET    /api/universities    # Get university list
+POST   /api/universities    # Add new university
+GET    /api/search         # Search universities
+POST   /api/calculate      # Calculate z-scores
+```
 
-### Example
-- Select "Academic Score" in the dropdown.
-- The AI fetches university data, calculates z-scores, and ranks institutions.
-- Results are displayed in a responsive, dark-themed table or list.
+### Z-Score Calculation
+The backend implements z-score calculations using the formula:
+```
+Z = (X - μ) / σ
+Where:
+- X = Raw score
+- μ = Population mean
+- σ = Standard deviation
+```
 
+## Development
 
-Please ensure code follows the project's ESLint and Prettier configurations.
+### Backend Development
+```bash
+cd back-end
+npm run dev     # Start development server
+npm run test    # Run tests
+npm run lint    # Run linter
+```
 
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+### Frontend Development
+```bash
+cd front-end
+npm run dev     # Start development server
+npm run build   # Create production build
+npm run lint    # Run linter
+```
