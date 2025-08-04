@@ -32,7 +32,6 @@ export default function Footer() {
               </a>
             </div>
           </div>
-
           {/* Quick Links */}
           <div>
             <h4 className="text-white font-semibold mb-4">Quick Links</h4>
@@ -59,7 +58,6 @@ export default function Footer() {
               </li>
             </ul>
           </div>
-
           {/* Contact Info */}
           <div>
             <h4 className="text-white font-semibold mb-4">Contact</h4>
@@ -92,7 +90,6 @@ export default function Footer() {
             </ul>
           </div>
         </div>
-
         {/* Bottom Section */}
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
@@ -115,4 +112,4 @@ export default function Footer() {
       </div>
     </footer>
   );
-} 
+}
