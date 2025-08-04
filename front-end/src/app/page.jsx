@@ -166,7 +166,10 @@ export default function Home() {
 
   const handleAddSubject = (subject, values, setFieldValue) => {
     if (subject && !values.selectedSubjects.find((s) => s.name === subject)) {
-      const newSubjects = [...values.selectedSubjects, { name: subject, grade: "" }];
+      const newSubjects = [
+        ...values.selectedSubjects,
+        { name: subject, grade: "" },
+      ];
       setFieldValue("selectedSubjects", newSubjects);
       setCurrentSearchSubject("");
     }
@@ -179,24 +182,21 @@ export default function Home() {
 
   const findUniversities = async (values) => {
     setIsProcessing(true);
-    console.log("Finding universities with values:", values);
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/v1/recommendations",
+        "http://localhost:8000/api/v1/recommend",
         {
-          zscore: parseFloat(values.personalInfo.zScore),
           district: values.personalInfo.district,
           stream: values.personalInfo.stream,
-          exam_year: parseInt(values.personalInfo.examYear),
+          zscore: parseFloat(values.personalInfo.zScore),
         }
       );
-
       setUniversityResults(response.data.recommendations);
       setShowResults(true);
       toast.success(
         `Found ${response.data.recommendations.length} recommendations!`
       );
-      
+
       // Scroll to results
       setTimeout(() => {
         document
@@ -248,7 +248,9 @@ export default function Home() {
                 <div className="text-gray-400">Universities</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <div className="text-3xl font-bold text-purple-400 mb-2">48</div>
+                <div className="text-3xl font-bold text-purple-400 mb-2">
+                  48
+                </div>
                 <div className="text-gray-400">A/L Subjects</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -286,19 +288,37 @@ export default function Home() {
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-white">O/L Results</h2>
+                      <h2 className="text-2xl font-bold text-white">
+                        O/L Results
+                      </h2>
                       <p className="text-gray-400">
                         Select your Ordinary Level examination results
                       </p>
                     </div>
                   </div>
                   <div className="grid sm:grid-cols-5 grid-cols-1 gap-6">
-                    {["mathematics", "english", "science", "sinhala", "tamil"].map((subject) => (
+                    {[
+                      "mathematics",
+                      "english",
+                      "science",
+                      "sinhala",
+                      "tamil",
+                    ].map((subject) => (
                       <div key={subject}>
                         <DropDown
-                          label={`${subject.charAt(0).toUpperCase() + subject.slice(1)} ${subject === "mathematics" || subject === "english" || subject === "science" ? "*" : ""}`}
+                          label={`${
+                            subject.charAt(0).toUpperCase() + subject.slice(1)
+                          } ${
+                            subject === "mathematics" ||
+                            subject === "english" ||
+                            subject === "science"
+                              ? "*"
+                              : ""
+                          }`}
                           options={["A", "B", "C", "S", "F"]}
-                          onSelect={(value) => setFieldValue(`olResults.${subject}`, value)}
+                          onSelect={(value) =>
+                            setFieldValue(`olResults.${subject}`, value)
+                          }
                         />
                         <ErrorMessage
                           name={`olResults.${subject}`}
@@ -331,7 +351,9 @@ export default function Home() {
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-white">A/L Results *</h2>
+                      <h2 className="text-2xl font-bold text-white">
+                        A/L Results *
+                      </h2>
                       <p className="text-gray-400">
                         Add your Advanced Level subjects and grades
                       </p>
@@ -347,12 +369,20 @@ export default function Home() {
                           value={currentSearchSubject}
                           placeholder="Search for a subject..."
                           options={alSubjects}
-                          onSelect={(subject) => setCurrentSearchSubject(subject)}
+                          onSelect={(subject) =>
+                            setCurrentSearchSubject(subject)
+                          }
                         />
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleAddSubject(currentSearchSubject, values, setFieldValue)}
+                        onClick={() =>
+                          handleAddSubject(
+                            currentSearchSubject,
+                            values,
+                            setFieldValue
+                          )
+                        }
                         disabled={!currentSearchSubject}
                         className="bg-blue-800 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
                       >
@@ -400,7 +430,12 @@ export default function Home() {
                                       <DropDown
                                         label="Grade *"
                                         options={["A", "B", "C", "S", "F"]}
-                                        onSelect={(grade) => setFieldValue(`selectedSubjects.${index}.grade`, grade)}
+                                        onSelect={(grade) =>
+                                          setFieldValue(
+                                            `selectedSubjects.${index}.grade`,
+                                            grade
+                                          )
+                                        }
                                       />
                                       <ErrorMessage
                                         name={`selectedSubjects.${index}.grade`}
@@ -411,7 +446,13 @@ export default function Home() {
                                     <div className="w-px h-20 bg-gray-700"></div>
                                     <button
                                       type="button"
-                                      onClick={() => handleRemoveSubject(index, values, setFieldValue)}
+                                      onClick={() =>
+                                        handleRemoveSubject(
+                                          index,
+                                          values,
+                                          setFieldValue
+                                        )
+                                      }
                                       className="text-red-400 hover:text-red-300 transition-colors p-2 rounded-lg hover:bg-red-500/10"
                                     >
                                       <svg
@@ -460,13 +501,22 @@ export default function Home() {
                           className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         />
                       </div>
-                      
+
                       {["generalEnglish", "git"].map((subject) => (
                         <div key={subject}>
                           <DropDown
-                            label={subject === "generalEnglish" ? "General English" : "GIT (General Information Technology)"}
+                            label={
+                              subject === "generalEnglish"
+                                ? "General English"
+                                : "GIT (General Information Technology)"
+                            }
                             options={["A", "B", "C", "S", "F"]}
-                            onSelect={(value) => setFieldValue(`additionalSubjects.${subject}`, value)}
+                            onSelect={(value) =>
+                              setFieldValue(
+                                `additionalSubjects.${subject}`,
+                                value
+                              )
+                            }
                           />
                         </div>
                       ))}
@@ -488,7 +538,8 @@ export default function Home() {
                           name="personalInfo.rank"
                           placeholder="Enter your rank"
                           className={`w-full bg-gray-800 text-white border rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                            errors.personalInfo?.rank && touched.personalInfo?.rank
+                            errors.personalInfo?.rank &&
+                            touched.personalInfo?.rank
                               ? "border-red-500"
                               : "border-gray-600"
                           }`}
@@ -510,7 +561,8 @@ export default function Home() {
                           name="personalInfo.zScore"
                           placeholder="Enter your Z-Score"
                           className={`w-full bg-gray-800 text-white border rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                            errors.personalInfo?.zScore && touched.personalInfo?.zScore
+                            errors.personalInfo?.zScore &&
+                            touched.personalInfo?.zScore
                               ? "border-red-500"
                               : "border-gray-600"
                           }`}
@@ -526,7 +578,9 @@ export default function Home() {
                         <DropDown
                           label="Stream *"
                           options={streams}
-                          onSelect={(value) => setFieldValue("personalInfo.stream", value)}
+                          onSelect={(value) =>
+                            setFieldValue("personalInfo.stream", value)
+                          }
                         />
                         <ErrorMessage
                           name="personalInfo.stream"
@@ -539,7 +593,9 @@ export default function Home() {
                         <DropDown
                           label="District *"
                           options={districts}
-                          onSelect={(value) => setFieldValue("personalInfo.district", value)}
+                          onSelect={(value) =>
+                            setFieldValue("personalInfo.district", value)
+                          }
                         />
                         <ErrorMessage
                           name="personalInfo.district"
@@ -557,7 +613,8 @@ export default function Home() {
                           name="personalInfo.examYear"
                           placeholder="Enter exam year"
                           className={`w-full bg-gray-800 text-white border rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                            errors.personalInfo?.examYear && touched.personalInfo?.examYear
+                            errors.personalInfo?.examYear &&
+                            touched.personalInfo?.examYear
                               ? "border-red-500"
                               : "border-gray-600"
                           }`}
