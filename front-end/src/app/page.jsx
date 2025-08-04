@@ -262,16 +262,24 @@ export default function Home() {
 
     // Print stream-specific results if available
     if (streamTableRef.current && streamResults.length > 0) {
-      printWindow.document.write('<div class="section"><h2>Stream-Specific Recommendations</h2>');
+      printWindow.document.write(
+        '<div class="section"><h2>Stream-Specific Recommendations</h2>'
+      );
       printWindow.document.write(streamTableRef.current.innerHTML);
-      printWindow.document.write('</div>');
+      printWindow.document.write("</div>");
     }
 
     // Print Cross Stream results if available and showExtra is checked
-    if (showExtra && crossStreamTableRef.current && crossStreamResults.length > 0) {
-      printWindow.document.write('<div class="section"><h2>Cross Stream Recommendations</h2>');
+    if (
+      showExtra &&
+      crossStreamTableRef.current &&
+      crossStreamResults.length > 0
+    ) {
+      printWindow.document.write(
+        '<div class="section"><h2>Cross Stream Recommendations</h2>'
+      );
       printWindow.document.write(crossStreamTableRef.current.innerHTML);
-      printWindow.document.write('</div>');
+      printWindow.document.write("</div>");
     }
 
     printWindow.document.write("</body></html>");
@@ -550,7 +558,7 @@ export default function Home() {
                         <Field
                           type="text"
                           name="additionalSubjects.commonGeneralTest"
-                          placeholder="Enter your result (e.g., 75)"
+                          placeholder="Enter your marks"
                           className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         />
                         <ErrorMessage
@@ -698,7 +706,8 @@ export default function Home() {
                         className="form-checkbox h-5 w-5 bg-gray-800 text-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                       />
                       <span className="text-m font-medium text-gray-300">
-                        Enable this option to display cross-stream courses and universities in the table.
+                        Enable this option to display cross-stream courses and
+                        universities in the table.
                       </span>
                     </label>
                   </div>
@@ -761,21 +770,80 @@ export default function Home() {
                 <div id="universities" className="max-w-6xl mx-auto px-6 mb-12">
                   {isLowScore(values) ? (
                     <div className="bg-gray-800 rounded-xl p-8 border border-red-700 shadow-lg mb-8 text-center">
-                      <div className="text-red-400 text-lg font-semibold flex items-center justify-center gap-2">
-                        <svg
-                          className="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        Your Common General Test score is too low! Please enter a score greater than 30.
+                      <div className="text-red-400 text-lg font-semibold items-center justify-center gap-2">
+                        <div className="flex text-justify justify-center mb-5 gap-5 items-center">
+                          <div className="w-8 h-8 flex items-center justify-center">
+<svg
+                            className="w-12 h-12"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg></div>
+                          <div>
+                            Candidates who have not obtained 30% or above for
+                            the common general paper are not eligible for
+                            registration for the courses of study of the
+                            universities for which they have been selected based
+                            on the Z Score in the current academic year.
+                          </div>
+                        </div>
+                        <div className="flex text-justify justify-center mb-5 gap-5 items-center">
+                          <div className="w-8 h-8 flex items-center justify-center">
+<svg
+                            className="w-12 h-12"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg></div>
+                          <div>
+                            If such a candidate has obtained a minimum of 30% for
+                          the common general paper in a previous attempt within
+                          three attempts allowed for university admission, the
+                          previous achievement can be considered.
+                          </div>
+                          
+                        </div>
+                        <div className="flex text-justify justify-center mb-5 gap-5 items-center">
+                          <div className="w-8 h-8 flex items-center justify-center">
+<svg
+                            className="w-12 h-12"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg></div>
+                          <div>
+                            Candidates who have not obtained a minimum of 30%
+                          shall re-sit and obtain a minimum of 30% for the
+                          common general paper in a next available year within
+                          three attempts allowed for university admission, to be
+                          eligible to get registered for the courses of study of
+                          the universities for which the candidates have already
+                          been selected based on Z Score, in a future academic
+                          year.
+                          </div>
+                          
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -809,7 +877,8 @@ export default function Home() {
                               <p className="text-gray-400">
                                 Your personalized university matches for{" "}
                                 {streamResults.length
-                                  ? streamResults[0]?.stream || values.personalInfo.stream
+                                  ? streamResults[0]?.stream ||
+                                    values.personalInfo.stream
                                   : values.personalInfo.stream}
                               </p>
                             </div>
