@@ -42,11 +42,17 @@ const validationSchema = Yup.object({
       .min(2000, "Invalid exam year")
       .max(new Date().getFullYear(), "Exam year cannot be in the future"),
   }),
+  additionalSubjects: Yup.object({
+    commonGeneralTest: Yup.number()
+      .typeError("Common General Test must be a number")
+      .min(0, "Score cannot be negative")
+      .max(100, "Score cannot exceed 100"),
+  }),
 });
 
 export default function Home() {
-  const tableRef = useRef();
-
+  const streamTableRef = useRef();
+  const crossStreamTableRef = useRef();
   const streams = [
     "Arts",
     "Commerce",
@@ -55,7 +61,6 @@ export default function Home() {
     "Engineering Technology",
     "Biosystems Technology",
   ];
-
   const districts = [
     "Colombo",
     "Gampaha",
@@ -83,7 +88,6 @@ export default function Home() {
     "Kegalle",
     "Ratnapura",
   ];
-
   const alSubjects = [
     "Biology",
     "Combined Mathematics",
@@ -134,11 +138,12 @@ export default function Home() {
     "General English",
     "General Information Technology",
   ];
-
   const [currentSearchSubject, setCurrentSearchSubject] = useState("");
-  const [universityResults, setUniversityResults] = useState([]);
+  const [streamResults, setStreamResults] = useState([]);
+  const [crossStreamResults, setCrossStreamResults] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showExtra, setShowExtra] = useState(false);
 
   // Initial form values
   const initialValues = {
@@ -164,6 +169,12 @@ export default function Home() {
     },
   };
 
+  // Check if Common General Test score is too low
+  const isLowScore = (values) => {
+    const score = parseFloat(values?.additionalSubjects?.commonGeneralTest);
+    return isNaN(score) || score <= 30;
+  };
+
   const handleAddSubject = (subject, values, setFieldValue) => {
     if (subject && !values.selectedSubjects.find((s) => s.name === subject)) {
       const newSubjects = [
@@ -183,7 +194,8 @@ export default function Home() {
   const findUniversities = async (values) => {
     setIsProcessing(true);
     try {
-      const response = await axios.post(
+      // Fetch stream-specific recommendations
+      const streamResponse = await axios.post(
         "http://localhost:8000/api/v1/recommend",
         {
           district: values.personalInfo.district,
@@ -191,18 +203,46 @@ export default function Home() {
           zscore: parseFloat(values.personalInfo.zScore),
         }
       );
-      setUniversityResults(response.data.recommendations);
+      setStreamResults(streamResponse.data.recommendations);
       setShowResults(true);
       toast.success(
-        `Found ${response.data.recommendations.length} recommendations!`
+        `Found ${streamResponse.data.recommendations.length} stream-specific recommendations!`
       );
 
-      // Scroll to results
+      // Scroll to stream results
       setTimeout(() => {
         document
-          .getElementById("universities")
+          .getElementById("stream-universities")
           ?.scrollIntoView({ behavior: "smooth" });
       }, 100);
+
+      // Fetch Cross Stream recommendations if showExtra is checked
+      let crossStreamResponse = { data: { recommendations: [] } };
+      if (showExtra) {
+        crossStreamResponse = await axios.post(
+          "http://localhost:8000/api/v1/recommend_cross_stream",
+          {
+            district: values.personalInfo.district,
+            stream: values.personalInfo.stream,
+            zscore: parseFloat(values.personalInfo.zScore),
+          }
+        );
+        setCrossStreamResults(crossStreamResponse.data.recommendations);
+        toast.success(
+          `Found ${crossStreamResponse.data.recommendations.length} Cross Stream recommendations!`
+        );
+      } else {
+        setCrossStreamResults([]);
+      }
+
+      // Scroll to Cross Stream results if stream results are empty and showExtra is checked
+      if (streamResponse.data.recommendations.length === 0 && showExtra) {
+        setTimeout(() => {
+          document
+            .getElementById("cross-stream-universities")
+            ?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
     } catch (error) {
       toast.error(
         error.response?.data?.detail || "Failed to get recommendations"
@@ -213,14 +253,27 @@ export default function Home() {
   };
 
   const handlePrint = () => {
-    const printContents = tableRef.current.innerHTML;
     const printWindow = window.open("", "", "height=600,width=800");
     printWindow.document.write("<html><head><title>University List</title>");
     printWindow.document.write(
-      "<style>table, th, td { border: 1px solid black; border-collapse: collapse; padding: 8px; }</style>"
+      "<style>table, th, td { border: 1px solid black; border-collapse: collapse; padding: 8px; } h2 { margin-top: 20px; } .section { margin-bottom: 30px; }</style>"
     );
     printWindow.document.write("</head><body>");
-    printWindow.document.write(printContents);
+
+    // Print stream-specific results if available
+    if (streamTableRef.current && streamResults.length > 0) {
+      printWindow.document.write('<div class="section"><h2>Stream-Specific Recommendations</h2>');
+      printWindow.document.write(streamTableRef.current.innerHTML);
+      printWindow.document.write('</div>');
+    }
+
+    // Print Cross Stream results if available and showExtra is checked
+    if (showExtra && crossStreamTableRef.current && crossStreamResults.length > 0) {
+      printWindow.document.write('<div class="section"><h2>Cross Stream Recommendations</h2>');
+      printWindow.document.write(crossStreamTableRef.current.innerHTML);
+      printWindow.document.write('</div>');
+    }
+
     printWindow.document.write("</body></html>");
     printWindow.document.close();
     printWindow.print();
@@ -407,7 +460,7 @@ export default function Home() {
                   {/* Selected Subjects */}
                   <FieldArray name="selectedSubjects">
                     {() => (
-                      <>
+                      <div>
                         {values.selectedSubjects.length > 0 && (
                           <div className="mb-8">
                             <h3 className="text-lg font-semibold text-white mb-4">
@@ -480,7 +533,7 @@ export default function Home() {
                             />
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
                   </FieldArray>
 
@@ -497,8 +550,13 @@ export default function Home() {
                         <Field
                           type="text"
                           name="additionalSubjects.commonGeneralTest"
-                          placeholder="Enter your result"
+                          placeholder="Enter your result (e.g., 75)"
                           className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                        <ErrorMessage
+                          name="additionalSubjects.commonGeneralTest"
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
                         />
                       </div>
 
@@ -559,7 +617,7 @@ export default function Home() {
                           type="number"
                           step="0.0001"
                           name="personalInfo.zScore"
-                          placeholder="Enter your Z-Score"
+                          placeholder="Enter your z-score"
                           className={`w-full bg-gray-800 text-white border rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                             errors.personalInfo?.zScore &&
                             touched.personalInfo?.zScore
@@ -578,6 +636,7 @@ export default function Home() {
                         <DropDown
                           label="Stream *"
                           options={streams}
+                          isStream={true}
                           onSelect={(value) =>
                             setFieldValue("personalInfo.stream", value)
                           }
@@ -593,6 +652,7 @@ export default function Home() {
                         <DropDown
                           label="District *"
                           options={districts}
+                          isDistric={true}
                           onSelect={(value) =>
                             setFieldValue("personalInfo.district", value)
                           }
@@ -628,6 +688,21 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* Options */}
+                  <div className="mt-5 mb-10 flex border border-gray-700 p-5 rounded-lg bg-gray-800">
+                    <label className="flex items-center text-white space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={showExtra}
+                        onChange={(e) => setShowExtra(e.target.checked)}
+                        className="form-checkbox h-5 w-5 bg-gray-800 text-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                      />
+                      <span className="text-m font-medium text-gray-300">
+                        Enable this option to display cross-stream courses and universities in the table.
+                      </span>
+                    </label>
+                  </div>
+
                   {/* Submit Button */}
                   <div className="flex justify-center">
                     <button
@@ -636,7 +711,7 @@ export default function Home() {
                       className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium px-8 py-3 rounded-lg transition-colors flex items-center gap-3 text-lg shadow-lg"
                     >
                       {isProcessing ? (
-                        <>
+                        <div className="flex items-center gap-3">
                           <svg
                             className="animate-spin w-6 h-6"
                             fill="none"
@@ -657,9 +732,9 @@ export default function Home() {
                             ></path>
                           </svg>
                           Processing...
-                        </>
+                        </div>
                       ) : (
-                        <>
+                        <div className="flex items-center gap-3">
                           <svg
                             className="w-6 h-6"
                             fill="none"
@@ -674,81 +749,157 @@ export default function Home() {
                             />
                           </svg>
                           Find Universities
-                        </>
+                        </div>
                       )}
                     </button>
                   </div>
                 </div>
               </div>
+
+              {/* University Results Section */}
+              {showResults && (
+                <div id="universities" className="max-w-6xl mx-auto px-6 mb-12">
+                  {isLowScore(values) ? (
+                    <div className="bg-gray-800 rounded-xl p-8 border border-red-700 shadow-lg mb-8 text-center">
+                      <div className="text-red-400 text-lg font-semibold flex items-center justify-center gap-2">
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        Your Common General Test score is too low! Please enter a score greater than 30.
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Stream-Specific Results */}
+                      <div
+                        id="stream-universities"
+                        className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg mb-8"
+                      >
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-4">
+                              <svg
+                                className="w-5 h-5 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <h2 className="text-2xl font-bold text-white">
+                                Stream-Specific Recommendations
+                              </h2>
+                              <p className="text-gray-400">
+                                Your personalized university matches for{" "}
+                                {streamResults.length
+                                  ? streamResults[0]?.stream || values.personalInfo.stream
+                                  : values.personalInfo.stream}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handlePrint}
+                            className="bg-gray-700 hover:bg-gray-600 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                              />
+                            </svg>
+                            Print Results
+                          </button>
+                        </div>
+                        {streamResults.length > 0 ? (
+                          <div ref={streamTableRef}>
+                            <Table tableData={streamResults} />
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <div className="text-gray-400 text-lg">
+                              No stream-specific recommendations found
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cross Stream Results */}
+                      {showExtra && (
+                        <div
+                          id="cross-stream-universities"
+                          className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg"
+                        >
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-4">
+                                <svg
+                                  className="w-5 h-5 text-white"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                  />
+                                </svg>
+                              </div>
+                              <div>
+                                <h2 className="text-2xl font-bold text-white">
+                                  Cross Stream Recommendations
+                                </h2>
+                                <p className="text-gray-400">
+                                  Courses available to all streams
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          {crossStreamResults.length > 0 ? (
+                            <div ref={crossStreamTableRef}>
+                              <Table tableData={crossStreamResults} />
+                            </div>
+                          ) : (
+                            <div className="text-center py-12">
+                              <div className="text-gray-400 text-lg">
+                                No Cross Stream recommendations found
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </Form>
           )}
         </Formik>
-
-        {/* University Results Section */}
-        <div id="universities" className="max-w-6xl mx-auto px-6">
-          <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-4">
-                  <svg
-                    className="w-5 h-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    University Recommendations
-                  </h2>
-                  <p className="text-gray-400">
-                    Your personalized university matches
-                  </p>
-                </div>
-              </div>
-              {showResults && (
-                <button
-                  onClick={handlePrint}
-                  className="bg-gray-700 hover:bg-gray-600 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                    />
-                  </svg>
-                  Print Results
-                </button>
-              )}
-            </div>
-            {!showResults ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400 text-lg">
-                  Click "Find Universities" to see your personalized
-                  recommendations
-                </div>
-              </div>
-            ) : (
-              <div ref={tableRef}>
-                <Table tableData={universityResults} />
-              </div>
-            )}
-          </div>
-        </div>
       </div>
       <Footer />
     </>

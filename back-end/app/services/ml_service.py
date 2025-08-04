@@ -18,8 +18,12 @@ class MLService:
 
     def recommend_courses(self, input_data: StudentInput) -> RecommendationResponse:
         df = self.model.df
-        course_university_pairs = df[df['Stream'] == input_data.stream][
-            ['Course', 'University']].drop_duplicates().values.tolist()
+        course_university_pairs = df[
+            (df['Stream'] == input_data.stream)
+        ][['Course', 'University']].drop_duplicates().values.tolist()
+        
+        if not course_university_pairs:
+            return RecommendationResponse(recommendations=[])
         
         new_student = pd.DataFrame({
             'Exam_Year': [df['Exam_Year'].max()] * len(course_university_pairs),
@@ -38,15 +42,24 @@ class MLService:
         new_student['district_competition'] = new_student.apply(
             lambda x: self.model.district_course_count.get(
                 (x['District'], x['Matched_Course_University']), 0), axis=1)
-        new_student['stream_course_compatibility'] = new_student.apply(
-            lambda x: self.model.stream_course_count.get(
-                (x['Stream'], x['Matched_Course_University']), 0), axis=1)
+        
+        def calculate_stream_compatibility(row):
+            course = row['Matched_Course_University']
+            return sum(self.model.stream_course_count.get((s, course), 0) 
+                      for s in ['Arts', 'Commerce', 'Biological Science', 
+                                'Physical Science', 'Engineering Technology', 
+                                'Biosystems Technology', 'Cross Stream'])
+        
+        new_student['stream_course_compatibility'] = new_student.apply(calculate_stream_compatibility, axis=1)
+        
         new_student['course_popularity'] = new_student['Matched_Course_University'].map(
             self.model.course_popularity).fillna(0)
         new_student['intake_normalized'] = new_student['Matched_Course_University'].map(
             df.groupby('Matched_Course_University')['Intake'].first() / df['Intake'].max()
         ).fillna(0)
         new_student['is_NQC'] = new_student['Zscore_Values'] == -10
+        new_student['course_demand'] = new_student['Matched_Course_University'].map(
+            self.model.course_demand).fillna(0)
 
         categorical_cols = ['Exam_Year', 'District', 'Stream', 'Course', 'University', 'is_NQC']
         for col in categorical_cols:
@@ -67,7 +80,7 @@ class MLService:
             'Exam_Year_encoded', 'District_encoded', 'Stream_encoded', 'Course_encoded', 
             'University_encoded', 'Zscore_Values', 'zscore_percentile', 
             'zscore_vs_course_avg', 'district_competition', 'stream_course_compatibility', 
-            'course_popularity', 'intake_normalized', 'is_NQC_encoded'
+            'course_popularity', 'intake_normalized', 'is_NQC_encoded', 'course_demand'
         ]
 
         predictions = self.model.model.predict(new_student[features])
@@ -76,13 +89,100 @@ class MLService:
 
         viable_courses = ranked_courses[
             (ranked_courses['zscore_vs_course_avg'] >= -0.5) & (~ranked_courses['is_NQC'])
-        ][['Course', 'University', 'Predicted_Score']]
+        ][['Course', 'University', 'Predicted_Score', 'course_demand']]
 
         recommendations = [
             CourseRecommendation(
                 course=row['Course'],
                 university=row['University'],
-                predicted_score=row['Predicted_Score']
+                predicted_score=row['Predicted_Score'],
+                demand_score=row['course_demand']
+            ) for _, row in viable_courses.iterrows()
+        ]
+
+        return RecommendationResponse(recommendations=recommendations)
+
+    def recommend_cross_stream_courses(self, input_data: StudentInput) -> RecommendationResponse:
+        df = self.model.df
+        course_university_pairs = df[
+            df['Stream'] == 'Cross Stream'
+        ][['Course', 'University']].drop_duplicates().values.tolist()
+        
+        if not course_university_pairs:
+            return RecommendationResponse(recommendations=[])
+        
+        new_student = pd.DataFrame({
+            'Exam_Year': [df['Exam_Year'].max()] * len(course_university_pairs),
+            'District': [input_data.district] * len(course_university_pairs),
+            'Stream': [input_data.stream] * len(course_university_pairs),
+            'Zscore_Values': [input_data.zscore] * len(course_university_pairs),
+            'Course': [pair[0] for pair in course_university_pairs],
+            'University': [pair[1] for pair in course_university_pairs]
+        })
+        new_student['Matched_Course_University'] = new_student['Course'] + ' (' + new_student['University'] + ')'
+
+        # Apply preprocessing
+        new_student['zscore_percentile'] = new_student['Zscore_Values'].rank(pct=True)
+        new_student['zscore_vs_course_avg'] = new_student['Zscore_Values'] - new_student[
+            'Matched_Course_University'].map(self.model.course_avg_zscore).fillna(0)
+        new_student['district_competition'] = new_student.apply(
+            lambda x: self.model.district_course_count.get(
+                (x['District'], x['Matched_Course_University']), 0), axis=1)
+        
+        def calculate_stream_compatibility(row):
+            course = row['Matched_Course_University']
+            return sum(self.model.stream_course_count.get((s, course), 0) 
+                      for s in ['Arts', 'Commerce', 'Biological Science', 
+                                'Physical Science', 'Engineering Technology', 
+                                'Biosystems Technology', 'Cross Stream'])
+        
+        new_student['stream_course_compatibility'] = new_student.apply(calculate_stream_compatibility, axis=1)
+        
+        new_student['course_popularity'] = new_student['Matched_Course_University'].map(
+            self.model.course_popularity).fillna(0)
+        new_student['intake_normalized'] = new_student['Matched_Course_University'].map(
+            df.groupby('Matched_Course_University')['Intake'].first() / df['Intake'].max()
+        ).fillna(0)
+        new_student['is_NQC'] = new_student['Zscore_Values'] == -10
+        new_student['course_demand'] = new_student['Matched_Course_University'].map(
+            self.model.course_demand).fillna(0)
+
+        categorical_cols = ['Exam_Year', 'District', 'Stream', 'Course', 'University', 'is_NQC']
+        for col in categorical_cols:
+            col_encoded = col + '_encoded'
+            try:
+                new_student[col_encoded] = self.model.label_encoders[col].transform(
+                    new_student[col].fillna('Missing').astype(str))
+            except ValueError:
+                new_student[col_encoded] = new_student[col].map(
+                    lambda x: self.model.label_encoders[col].transform([x])[0] 
+                    if x in self.model.label_encoders[col].classes_ 
+                    else self.model.label_encoders[col].transform(['Missing'])[0]
+                )
+
+        new_student['group_id'] = new_student['District'] + '_' + new_student['Stream'] + '_' + new_student['Exam_Year']
+
+        features = [
+            'Exam_Year_encoded', 'District_encoded', 'Stream_encoded', 'Course_encoded', 
+            'University_encoded', 'Zscore_Values', 'zscore_percentile', 
+            'zscore_vs_course_avg', 'district_competition', 'stream_course_compatibility', 
+            'course_popularity', 'intake_normalized', 'is_NQC_encoded', 'course_demand'
+        ]
+
+        predictions = self.model.model.predict(new_student[features])
+        new_student['Predicted_Score'] = predictions
+        ranked_courses = new_student.sort_values(by='Predicted_Score', ascending=False)
+
+        viable_courses = ranked_courses[
+            (ranked_courses['zscore_vs_course_avg'] >= -0.5) & (~ranked_courses['is_NQC'])
+        ][['Course', 'University', 'Predicted_Score', 'course_demand']]
+
+        recommendations = [
+            CourseRecommendation(
+                course=row['Course'],
+                university=row['University'],
+                predicted_score=row['Predicted_Score'],
+                demand_score=row['course_demand']
             ) for _, row in viable_courses.iterrows()
         ]
 

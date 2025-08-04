@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export default function DropDown({label, options = [], onSelect}) {
+export default function DropDown({label, options = [], onSelect, isDistric, isStream}) {
   const [selectedValue, setSelectedValue] = useState('');
 
   const handleChange = (e) => {
@@ -24,9 +24,19 @@ export default function DropDown({label, options = [], onSelect}) {
         onChange={handleChange}
         className="w-full bg-gray-800 text-white border border-gray-600 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition py-4"
       >
-        <option value="" disabled>
-          Choose grade
-        </option>
+        {isDistric ? (
+          <option value="" disabled>
+            Choose District
+          </option>
+        ) : isStream ? (
+          <option value="" disabled>
+            Choose Stream
+          </option>
+        ) : (
+          <option value="" disabled>
+            Choose Grade
+          </option>
+        )}
         {options.length > 0 ? (
           options.map((option, index) => (
             <option key={index} value={option} className="bg-gray-800 text-white">
