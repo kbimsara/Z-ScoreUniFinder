@@ -1,74 +1,51 @@
-'use client'
-
-import { useState } from 'react';
+"use client";
 
 export default function Table({ tableData }) {
-
   return (
-
-    <div class="relative overflow-x-auto shadow-md sm:rounded-lg sm:m-4 xl:m-6 2xl:m-8">
-      <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-white border border-gray-600">
+        <thead className="bg-gray-700">
           <tr>
-            <th scope="col" class="px-6 py-3">
-              No
+            <th className="px-4 py-2 border-b border-gray-600">No</th>
+            <th className="px-4 py-2 border-b border-gray-600">Degree</th>
+            <th className="px-4 py-2 border-b border-gray-600">University</th>
+            <th className="px-4 py-2 border-b border-gray-600">
+              Predicted Score
             </th>
-            <th scope="col" class="px-6 py-3">
-              University
-            </th>
-            <th scope="col" class="px-6 py-3">
-              Z-Score
-            </th>
-            <th scope="col" class="px-6 py-3">
-              Province
-            </th>
-            <th scope="col" class="px-6 py-3">
-              <span class="sr-only">Edit</span>
+            <th className="px-4 py-2 border-b border-gray-600">
+              Demand Score
             </th>
           </tr>
         </thead>
         <tbody>
-          {
-          tableData.map((data, index) => (
-            <tr key={index} class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
-              <td class="px-6 py-4">
-                {index + 1}
-              </td>
-              <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                {data.university}
-              </th>
-              <td class="px-6 py-4">
-                {data.zScore}
-              </td>
-              <td class="px-6 py-4">
-                {data.province}
-              </td>
-              <td class="px-6 py-4 text-right">
-                <a href="#" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Set</a>
+          {tableData.length > 0 ? (
+            [...tableData]
+              .sort((a, b) => b.demand_score - a.demand_score)
+              .map((item, index) => (
+                <tr
+                  key={index}
+                  className="border-b border-gray-600 hover:bg-gray-600"
+                >
+                  <td className="px-4 py-2">{index + 1}</td>
+                  <td className="px-4 py-2">{item.course}</td>
+                  <td className="px-4 py-2">{item.university}</td>
+                  <td className="px-4 py-2">
+                    {item.predicted_score.toFixed(2)}
+                  </td>
+                   <td className="px-4 py-2">
+                    {item.demand_score.toFixed(2)}
+                  </td>
+                </tr>
+              ))
+          ) : (
+            <tr>
+              <td colSpan="4" className="px-4 py-2 text-center text-gray-400">
+                No recommendations available
               </td>
             </tr>
-          ))
-          }
-          {/* <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
-            <td class="px-6 py-4">
-              01
-            </td>
-            <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-              UOM
-            </th>
-            <td class="px-6 py-4">
-              0.1111
-            </td>
-            <td class="px-6 py-4">
-              Western
-            </td>
-            <td class="px-6 py-4 text-right">
-              <a href="#" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Set</a>
-            </td>
-          </tr> */}
+          )}
         </tbody>
       </table>
     </div>
-
   );
 }

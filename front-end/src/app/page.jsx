@@ -1,18 +1,93 @@
-'use client';
-import NavBar from "@/components/nav/NavBar";
-import DropDown from "@/components/dropdown/DropDown";
-import SearchableDropDown from "@/components/dropdown/SearchableDropDown";
-import Table from "@/components/table/Table";
-import Footer from "@/components/footer/Footer";
-import './globals.css'
+"use client";
 
-import { useRef, useState } from 'react';
+import { useRef, useState } from "react";
+import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
+import * as Yup from "yup";
+import axios from "axios";
+import toast, { Toaster } from "react-hot-toast";
+import NavBar from "../components/nav/NavBar";
+import DropDown from "../components/dropdown/DropDown";
+import SearchableDropDown from "../components/dropdown/SearchableDropDown";
+import Table from "../components/table/Table";
+import Footer from "../components/footer/Footer";
+import "./globals.css";
+
+// Validation Schema
+const validationSchema = Yup.object({
+  olResults: Yup.object({
+    mathematics: Yup.string().required("Mathematics grade is required"),
+    english: Yup.string().required("English grade is required"),
+    science: Yup.string().required("Science grade is required"),
+    sinhala: Yup.string(),
+    tamil: Yup.string(),
+  }),
+  selectedSubjects: Yup.array()
+    .min(1, "At least one A/L subject is required")
+    .of(
+      Yup.object({
+        name: Yup.string().required("Subject name is required"),
+        grade: Yup.string().required("Grade is required"),
+      })
+    ),
+  personalInfo: Yup.object({
+    district: Yup.string().required("District is required"),
+    rank: Yup.number().positive("Rank must be positive"),
+    zScore: Yup.number()
+      .required("Z-Score is required")
+      .min(-4, "Z-Score must be at least -4")
+      .max(4, "Z-Score must be at most 4"),
+    stream: Yup.string().required("Stream is required"),
+    examYear: Yup.number()
+      .required("Exam year is required")
+      .min(2000, "Invalid exam year")
+      .max(new Date().getFullYear(), "Exam year cannot be in the future"),
+  }),
+  additionalSubjects: Yup.object({
+    commonGeneralTest: Yup.number()
+      .typeError("Common General Test must be a number")
+      .min(0, "Score cannot be negative")
+      .max(100, "Score cannot exceed 100"),
+  }),
+});
 
 export default function Home() {
-
-  const tableRef = useRef();
-
-  // A/L Subjects array
+  const streamTableRef = useRef();
+  const crossStreamTableRef = useRef();
+  const streams = [
+    "Arts",
+    "Commerce",
+    "Biological Science",
+    "Physical Science",
+    "Engineering Technology",
+    "Biosystems Technology",
+  ];
+  const districts = [
+    "Colombo",
+    "Gampaha",
+    "Kalutara",
+    "Matale",
+    "Kandy",
+    "Nuwara Eliya",
+    "Galle",
+    "Matara",
+    "Hambantota",
+    "Jaffna",
+    "Kilinochchi",
+    "Mannar",
+    "Mullaitivu",
+    "Vavuniya",
+    "Trincomalee",
+    "Batticaloa",
+    "Ampara",
+    "Puttalam",
+    "Kurunegala",
+    "Anuradhapura",
+    "Polonnaruwa",
+    "Badulla",
+    "Monaragala",
+    "Kegalle",
+    "Ratnapura",
+  ];
   const alSubjects = [
     "Biology",
     "Combined Mathematics",
@@ -61,186 +136,182 @@ export default function Home() {
     "Music",
     "Home Science",
     "General English",
-    "General Information Technology"
+    "General Information Technology",
   ];
-
-  // State for form data
-  const [selectedSubjects, setSelectedSubjects] = useState([]);
-  const [currentSearchSubject, setCurrentSearchSubject] = useState('');
-  const [olResults, setOlResults] = useState({
-    mathematics: '',
-    english: '',
-    science: '',
-    sinhala: '',
-    tamil: ''
-  });
-  const [additionalSubjects, setAdditionalSubjects] = useState({
-    commonGeneralTest: '',
-    git: '',
-    generalEnglish: ''
-  });
-  const [personalInfo, setPersonalInfo] = useState({
-    district: '',
-    rank: '',
-    zScore: ''
-  });
-  const [universityResults, setUniversityResults] = useState([]);
+  const [currentSearchSubject, setCurrentSearchSubject] = useState("");
+  const [streamResults, setStreamResults] = useState([]);
+  const [crossStreamResults, setCrossStreamResults] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showExtra, setShowExtra] = useState(false);
 
-  const handleAddSubject = (subject) => {
-    if (subject && !selectedSubjects.find(s => s.name === subject)) {
-      setSelectedSubjects([...selectedSubjects, { name: subject, grade: '' }]);
-      setCurrentSearchSubject('');
+  // Initial form values
+  const initialValues = {
+    olResults: {
+      mathematics: "",
+      english: "",
+      science: "",
+      sinhala: "",
+      tamil: "",
+    },
+    selectedSubjects: [],
+    additionalSubjects: {
+      commonGeneralTest: "",
+      git: "",
+      generalEnglish: "",
+    },
+    personalInfo: {
+      district: "",
+      rank: "",
+      zScore: "",
+      stream: "",
+      examYear: new Date().getFullYear(),
+    },
+  };
+
+  // Check if Common General Test score is too low
+  const isLowScore = (values) => {
+    const score = parseFloat(values?.additionalSubjects?.commonGeneralTest);
+    return isNaN(score) || score <= 30;
+  };
+
+  const handleAddSubject = (subject, values, setFieldValue) => {
+    if (subject && !values.selectedSubjects.find((s) => s.name === subject)) {
+      const newSubjects = [
+        ...values.selectedSubjects,
+        { name: subject, grade: "" },
+      ];
+      setFieldValue("selectedSubjects", newSubjects);
+      setCurrentSearchSubject("");
     }
   };
 
-  const handleGradeChange = (subjectName, grade) => {
-    setSelectedSubjects(selectedSubjects.map(subject => 
-      subject.name === subjectName ? { ...subject, grade } : subject
-    ));
+  const handleRemoveSubject = (index, values, setFieldValue) => {
+    const newSubjects = values.selectedSubjects.filter((_, i) => i !== index);
+    setFieldValue("selectedSubjects", newSubjects);
   };
 
-  const handleRemoveSubject = (subjectName) => {
-    setSelectedSubjects(selectedSubjects.filter(subject => subject.name !== subjectName));
-  };
-
-  const handleOlGradeChange = (subject, grade) => {
-    setOlResults(prev => ({
-      ...prev,
-      [subject]: grade
-    }));
-  };
-
-  const handleAdditionalSubjectChange = (subject, value) => {
-    setAdditionalSubjects(prev => ({
-      ...prev,
-      [subject]: value
-    }));
-  };
-
-  const handlePersonalInfoChange = (field, value) => {
-    setPersonalInfo(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  // Function to collect all form data
-  const collectFormData = () => {
-    return {
-      olResults,
-      alResults: selectedSubjects,
-      additionalSubjects,
-      personalInfo
-    };
-  };
-
-  // Function to call ML model API
-  const findUniversities = async () => {
+  const findUniversities = async (values) => {
     setIsProcessing(true);
-    
     try {
-      const formData = collectFormData();
-      
-      // TODO: Replace with your actual ML model API endpoint
-      // const response = await fetch('/api/predict-universities', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(formData)
-      // });
-      // const results = await response.json();
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock response - replace this with actual API response
-      const mockResults = [
+      // Fetch stream-specific recommendations
+      const streamResponse = await axios.post(
+        "http://localhost:8000/api/v1/recommend",
         {
-          name: "University of Moratuwa (UOM)",
-          zScore: "1.2345",
-          province: "Western",
-          eligible: true,
-          matchPercentage: 85,
-          requirements: "Engineering, Technology"
-        },
-        {
-          name: "University of Colombo (UOC)",
-          zScore: "1.2345",
-          province: "Western",
-          eligible: true,
-          matchPercentage: 78,
-          requirements: "Arts, Science, Medicine"
-        },
-        {
-          name: "University of Kelaniya (UOK)",
-          zScore: "1.2345",
-          province: "Western",
-          eligible: true,
-          matchPercentage: 92,
-          requirements: "Arts, Science, Humanities"
-        },
-        {
-          name: "University of Peradeniya (UOP)",
-          zScore: "1.2345",
-          province: "Central",
-          eligible: false,
-          matchPercentage: 45,
-          requirements: "Arts, Science, Agriculture"
+          district: values.personalInfo.district,
+          stream: values.personalInfo.stream,
+          zscore: parseFloat(values.personalInfo.zScore),
         }
-      ];
-
-      setUniversityResults(mockResults);
+      );
+      setStreamResults(streamResponse.data.recommendations);
       setShowResults(true);
-      
-      // Scroll to results section
-      document.getElementById('universities').scrollIntoView({ behavior: 'smooth' });
-      
+      toast.success(
+        `Found ${streamResponse.data.recommendations.length} stream-specific recommendations!`
+      );
+
+      // Scroll to stream results
+      setTimeout(() => {
+        document
+          .getElementById("stream-universities")
+          ?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+
+      // Fetch Cross Stream recommendations if showExtra is checked
+      let crossStreamResponse = { data: { recommendations: [] } };
+      if (showExtra) {
+        crossStreamResponse = await axios.post(
+          "http://localhost:8000/api/v1/recommend_cross_stream",
+          {
+            district: values.personalInfo.district,
+            stream: values.personalInfo.stream,
+            zscore: parseFloat(values.personalInfo.zScore),
+          }
+        );
+        setCrossStreamResults(crossStreamResponse.data.recommendations);
+        toast.success(
+          `Found ${crossStreamResponse.data.recommendations.length} Cross Stream recommendations!`
+        );
+      } else {
+        setCrossStreamResults([]);
+      }
+
+      // Scroll to Cross Stream results if stream results are empty and showExtra is checked
+      if (streamResponse.data.recommendations.length === 0 && showExtra) {
+        setTimeout(() => {
+          document
+            .getElementById("cross-stream-universities")
+            ?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
     } catch (error) {
-      console.error('Error calling ML model:', error);
-      // Handle error - show user-friendly message
+      toast.error(
+        error.response?.data?.detail || "Failed to get recommendations"
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handlePrint = () => {
-    const printContents = tableRef.current.innerHTML;
-    const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write('<html><head><title>University List</title>');
-    printWindow.document.write('<style>table, th, td { border: 1px solid black; border-collapse: collapse; padding: 8px; }</style>');
-    printWindow.document.write('</head><body>');
-    printWindow.document.write(printContents);
-    printWindow.document.write('</body></html>');
+    const printWindow = window.open("", "", "height=600,width=800");
+    printWindow.document.write("<html><head><title>University List</title>");
+    printWindow.document.write(
+      "<style>table, th, td { border: 1px solid black; border-collapse: collapse; padding: 8px; } h2 { margin-top: 20px; } .section { margin-bottom: 30px; }</style>"
+    );
+    printWindow.document.write("</head><body>");
+
+    // Print stream-specific results if available
+    if (streamTableRef.current && streamResults.length > 0) {
+      printWindow.document.write(
+        '<div class="section"><h2>Stream-Specific Recommendations</h2>'
+      );
+      printWindow.document.write(streamTableRef.current.innerHTML);
+      printWindow.document.write("</div>");
+    }
+
+    // Print Cross Stream results if available and showExtra is checked
+    if (
+      showExtra &&
+      crossStreamTableRef.current &&
+      crossStreamResults.length > 0
+    ) {
+      printWindow.document.write(
+        '<div class="section"><h2>Cross Stream Recommendations</h2>'
+      );
+      printWindow.document.write(crossStreamTableRef.current.innerHTML);
+      printWindow.document.write("</div>");
+    }
+
+    printWindow.document.write("</body></html>");
     printWindow.document.close();
     printWindow.print();
   };
 
   return (
     <>
+      <Toaster />
       <NavBar />
-      <div className="pt-16 min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {/* Home Section */}
+      <div className="pt-16 min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-12">
         <div id="home" className="py-16">
           <div className="max-w-4xl mx-auto px-6 text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Welcome to <span className="text-blue-400">Z-Score</span> University Finder
+              Welcome to <span className="text-blue-400">Z-Score</span>{" "}
+              University Finder
             </h1>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed mb-8">
-              Find your perfect university match using AI-powered Z-score analysis. 
-              Get personalized recommendations based on your academic performance.
+              Find your perfect university match using AI-powered Z-score
+              analysis. Get personalized recommendations based on your academic
+              performance.
             </p>
-            
-            {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div className="text-3xl font-bold text-blue-400 mb-2">15+</div>
                 <div className="text-gray-400">Universities</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <div className="text-3xl font-bold text-purple-400 mb-2">48</div>
+                <div className="text-3xl font-bold text-purple-400 mb-2">
+                  48
+                </div>
                 <div className="text-gray-400">A/L Subjects</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -250,293 +321,655 @@ export default function Home() {
             </div>
           </div>
         </div>
-        
-        {/* O/L Results Section */}
-        <div id="ol-results" className="max-w-6xl mx-auto px-6 mb-12">
-          <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg">
-            <div className="flex items-center mb-6">
-              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-4">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">O/L Results</h2>
-                <p className="text-gray-400">Select your Ordinary Level examination results</p>
-              </div>
-            </div>
-            
-            <div className="grid sm:grid-cols-5 grid-cols-1 gap-6">
-              <div>
-                <DropDown 
-                  label={"Mathematics"} 
-                  onSelect={(grade) => handleOlGradeChange('mathematics', grade)}
-                />
-              </div>
-              <div>
-                <DropDown 
-                  label={"English"} 
-                  onSelect={(grade) => handleOlGradeChange('english', grade)}
-                />
-              </div>
-              <div>
-                <DropDown 
-                  label={"Science"} 
-                  onSelect={(grade) => handleOlGradeChange('science', grade)}
-                />
-              </div>
-              <div>
-                <DropDown 
-                  label={"Sinhala"} 
-                  onSelect={(grade) => handleOlGradeChange('sinhala', grade)}
-                />
-              </div>
-              <div>
-                <DropDown 
-                  label={"Tamil"} 
-                  onSelect={(grade) => handleOlGradeChange('tamil', grade)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* A/L Results Section */}
-        <div id="al-results" className="max-w-6xl mx-auto px-6 mb-12">
-          <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg">
-            <div className="flex items-center mb-6">
-              <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-4">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">A/L Results</h2>
-                <p className="text-gray-400">Add your Advanced Level subjects and grades</p>
-              </div>
-            </div>
-            
-            {/* Subject Search and Add */}
-            <div className="mb-8">
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <SearchableDropDown 
-                    label="Search Subject" 
-                    options={alSubjects}
-                    onSelect={(subject) => setCurrentSearchSubject(subject)}
-                  />
-                </div>
-                <button 
-                  onClick={() => handleAddSubject(currentSearchSubject)}
-                  disabled={!currentSearchSubject}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Add Subject
-                </button>
-              </div>
-            </div>
 
-            {/* Selected Subjects with Grades */}
-            {selectedSubjects.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-white mb-4">Selected Subjects</h3>
-                <div className="space-y-3">
-                  {selectedSubjects.map((subject, index) => (
-                    <div key={index} className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:bg-gray-600 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <span className="text-white font-medium">{subject.name}</span>
-                        </div>
-                        <div className="w-32">
-                          <DropDown 
-                            label="Grade"
-                            onSelect={(grade) => handleGradeChange(subject.name, grade)}
+        <Formik
+          initialValues={initialValues}
+          validationSchema={validationSchema}
+          onSubmit={findUniversities}
+        >
+          {({ values, setFieldValue, errors, touched, isValid }) => (
+            <Form>
+              {/* O/L Results Section */}
+              <div id="ol-results" className="max-w-6xl mx-auto px-6 mb-12">
+                <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg">
+                  <div className="flex items-center mb-6">
+                    <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-4">
+                      <svg
+                        className="w-5 h-5 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">
+                        O/L Results
+                      </h2>
+                      <p className="text-gray-400">
+                        Select your Ordinary Level examination results
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-5 grid-cols-1 gap-6">
+                    {[
+                      "mathematics",
+                      "english",
+                      "science",
+                      "sinhala",
+                      "tamil",
+                    ].map((subject) => (
+                      <div key={subject}>
+                        <DropDown
+                          label={`${
+                            subject.charAt(0).toUpperCase() + subject.slice(1)
+                          } ${
+                            subject === "mathematics" ||
+                            subject === "english" ||
+                            subject === "science"
+                              ? "*"
+                              : ""
+                          }`}
+                          options={["A", "B", "C", "S", "F"]}
+                          onSelect={(value) =>
+                            setFieldValue(`olResults.${subject}`, value)
+                          }
+                        />
+                        <ErrorMessage
+                          name={`olResults.${subject}`}
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* A/L Results Section */}
+              <div id="al-results" className="max-w-6xl mx-auto px-6 mb-12">
+                <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg">
+                  <div className="flex items-center mb-6">
+                    <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-4">
+                      <svg
+                        className="w-5 h-5 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">
+                        A/L Results *
+                      </h2>
+                      <p className="text-gray-400">
+                        Add your Advanced Level subjects and grades
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Add Subject Section */}
+                  <div className="mb-8">
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1">
+                        <SearchableDropDown
+                          label="Search Subject"
+                          value={currentSearchSubject}
+                          placeholder="Search for a subject..."
+                          options={alSubjects}
+                          onSelect={(subject) =>
+                            setCurrentSearchSubject(subject)
+                          }
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddSubject(
+                            currentSearchSubject,
+                            values,
+                            setFieldValue
+                          )
+                        }
+                        disabled={!currentSearchSubject}
+                        className="bg-blue-800 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          />
+                        </svg>
+                        Add Subject
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Selected Subjects */}
+                  <FieldArray name="selectedSubjects">
+                    {() => (
+                      <div>
+                        {values.selectedSubjects.length > 0 && (
+                          <div className="mb-8">
+                            <h3 className="text-lg font-semibold text-white mb-4">
+                              Selected Subjects
+                            </h3>
+                            <div className="space-y-3">
+                              {values.selectedSubjects.map((subject, index) => (
+                                <div
+                                  key={index}
+                                  className="bg-gray-800 rounded-lg p-4 border border-gray-600 hover:bg-gray-600 transition-colors"
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex-1">
+                                      <span className="text-white font-medium">
+                                        {subject.name}
+                                      </span>
+                                    </div>
+                                    <div className="w-px h-20 bg-gray-700"></div>
+                                    <div className="px-5">
+                                      <DropDown
+                                        label="Grade *"
+                                        options={["A", "B", "C", "S", "F"]}
+                                        onSelect={(grade) =>
+                                          setFieldValue(
+                                            `selectedSubjects.${index}.grade`,
+                                            grade
+                                          )
+                                        }
+                                      />
+                                      <ErrorMessage
+                                        name={`selectedSubjects.${index}.grade`}
+                                        component="div"
+                                        className="text-red-400 text-sm mt-1"
+                                      />
+                                    </div>
+                                    <div className="w-px h-20 bg-gray-700"></div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveSubject(
+                                          index,
+                                          values,
+                                          setFieldValue
+                                        )
+                                      }
+                                      className="text-red-400 hover:text-red-300 transition-colors p-2 rounded-lg hover:bg-red-500/10"
+                                    >
+                                      <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M6 18L18 6M6 6l12 12"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <ErrorMessage
+                              name="selectedSubjects"
+                              component="div"
+                              className="text-red-400 text-sm mt-2"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </FieldArray>
+
+                  {/* Additional Subjects */}
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                      Additional Subjects
+                    </h3>
+                    <div className="grid sm:grid-cols-3 grid-cols-1 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Common General Test
+                        </label>
+                        <Field
+                          type="text"
+                          name="additionalSubjects.commonGeneralTest"
+                          placeholder="Enter your marks"
+                          className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                        <ErrorMessage
+                          name="additionalSubjects.commonGeneralTest"
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
+                        />
+                      </div>
+
+                      {["generalEnglish", "git"].map((subject) => (
+                        <div key={subject}>
+                          <DropDown
+                            label={
+                              subject === "generalEnglish"
+                                ? "General English"
+                                : "GIT (General Information Technology)"
+                            }
+                            options={["A", "B", "C", "S", "F"]}
+                            onSelect={(value) =>
+                              setFieldValue(
+                                `additionalSubjects.${subject}`,
+                                value
+                              )
+                            }
                           />
                         </div>
-                        <button 
-                          onClick={() => handleRemoveSubject(subject.name)}
-                          className="text-red-400 hover:text-red-300 transition-colors p-2 rounded-lg hover:bg-red-500/10"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Personal Information */}
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                      Personal Information
+                    </h3>
+                    <div className="grid sm:grid-cols-5 grid-cols-1 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Rank
+                        </label>
+                        <Field
+                          type="number"
+                          name="personalInfo.rank"
+                          placeholder="Enter your rank"
+                          className={`w-full bg-gray-800 text-white border rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                            errors.personalInfo?.rank &&
+                            touched.personalInfo?.rank
+                              ? "border-red-500"
+                              : "border-gray-600"
+                          }`}
+                        />
+                        <ErrorMessage
+                          name="personalInfo.rank"
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Z-Score *
+                        </label>
+                        <Field
+                          type="number"
+                          step="0.0001"
+                          name="personalInfo.zScore"
+                          placeholder="Enter your z-score"
+                          className={`w-full bg-gray-800 text-white border rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                            errors.personalInfo?.zScore &&
+                            touched.personalInfo?.zScore
+                              ? "border-red-500"
+                              : "border-gray-600"
+                          }`}
+                        />
+                        <ErrorMessage
+                          name="personalInfo.zScore"
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <DropDown
+                          label="Stream *"
+                          options={streams}
+                          isStream={true}
+                          onSelect={(value) =>
+                            setFieldValue("personalInfo.stream", value)
+                          }
+                        />
+                        <ErrorMessage
+                          name="personalInfo.stream"
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <DropDown
+                          label="District *"
+                          options={districts}
+                          isDistric={true}
+                          onSelect={(value) =>
+                            setFieldValue("personalInfo.district", value)
+                          }
+                        />
+                        <ErrorMessage
+                          name="personalInfo.district"
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Exam Year *
+                        </label>
+                        <Field
+                          type="number"
+                          name="personalInfo.examYear"
+                          placeholder="Enter exam year"
+                          className={`w-full bg-gray-800 text-white border rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                            errors.personalInfo?.examYear &&
+                            touched.personalInfo?.examYear
+                              ? "border-red-500"
+                              : "border-gray-600"
+                          }`}
+                        />
+                        <ErrorMessage
+                          name="personalInfo.examYear"
+                          component="div"
+                          className="text-red-400 text-sm mt-1"
+                        />
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
 
-            {/* Additional Subjects */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-white mb-4">Additional Subjects</h3>
-              <div className="grid sm:grid-cols-3 grid-cols-1 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Common General Test
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter your result"
-                    value={additionalSubjects.commonGeneralTest}
-                    onChange={(e) => handleAdditionalSubjectChange('commonGeneralTest', e.target.value)}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-                <div>
-                  <DropDown 
-                    label="GIT (General Information Technology)" 
-                    options={['A', 'B', 'C', 'S', 'F']}
-                    onSelect={(grade) => handleAdditionalSubjectChange('git', grade)}
-                  />
-                </div>
-                <div>
-                  <DropDown 
-                    label="General English" 
-                    options={['A', 'B', 'C', 'S', 'F']}
-                    onSelect={(grade) => handleAdditionalSubjectChange('generalEnglish', grade)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Personal Information */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-white mb-4">Personal Information</h3>
-              <div className="grid sm:grid-cols-3 grid-cols-1 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    District
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter your district"
-                    value={personalInfo.district}
-                    onChange={(e) => handlePersonalInfoChange('district', e.target.value)}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Rank
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Enter your rank"
-                    value={personalInfo.rank}
-                    onChange={(e) => handlePersonalInfoChange('rank', e.target.value)}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Z-Score
-                  </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="Enter your Z-Score"
-                    value={personalInfo.zScore}
-                    onChange={(e) => handlePersonalInfoChange('zScore', e.target.value)}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-center">
-              <button 
-                onClick={findUniversities}
-                disabled={isProcessing || selectedSubjects.length === 0}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium px-8 py-3 rounded-lg transition-colors flex items-center gap-3 text-lg shadow-lg"
-              >
-                {isProcessing ? (
-                  <>
-                    <svg className="animate-spin w-6 h-6" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    Find Universities
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Universities Section */}
-        <div id="universities" className="max-w-6xl mx-auto px-6 mb-12">
-          <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-4">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">University Recommendations</h2>
-                  <p className="text-gray-400">Your personalized university matches</p>
-                </div>
-              </div>
-              {showResults && (
-                <button 
-                  onClick={handlePrint} 
-                  className="bg-gray-700 hover:bg-gray-600 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Print Results
-                </button>
-              )}
-            </div>
-            
-            {!showResults ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400 text-lg">
-                  Click "Find Universities" to see your personalized recommendations
-                </div>
-              </div>
-            ) : (
-              <div ref={tableRef}>
-                <Table tableData={universityResults.map((uni, index) => ({
-                  no: (index + 1).toString().padStart(2, '0'),
-                  university: uni.name,
-                  zScore: uni.zScore,
-                  province: uni.province,
-                  action: (
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        uni.eligible 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {uni.eligible ? 'Eligible' : 'Not Eligible'}
+                  {/* Options */}
+                  <div className="mt-5 mb-10 flex border border-gray-700 p-5 rounded-lg bg-gray-800">
+                    <label className="flex items-center text-white space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={showExtra}
+                        onChange={(e) => setShowExtra(e.target.checked)}
+                        className="form-checkbox h-5 w-5 bg-gray-800 text-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                      />
+                      <span className="text-m font-medium text-gray-300">
+                        Enable this option to display cross-stream courses and
+                        universities in the table.
                       </span>
-                      <a href="#" className="font-medium text-blue-400 hover:text-blue-300 hover:underline">
-                        View Details
-                      </a>
-                    </div>
-                  )
-                }))} />
+                    </label>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="flex justify-center">
+                    <button
+                      type="submit"
+                      disabled={isProcessing || !isValid}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium px-8 py-3 rounded-lg transition-colors flex items-center gap-3 text-lg shadow-lg"
+                    >
+                      {isProcessing ? (
+                        <div className="flex items-center gap-3">
+                          <svg
+                            className="animate-spin w-6 h-6"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Processing...
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <svg
+                            className="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                          Find Universities
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
+
+              {/* University Results Section */}
+              {showResults && (
+                <div id="universities" className="max-w-6xl mx-auto px-6 mb-12">
+                  {isLowScore(values) ? (
+                    <div className="bg-gray-800 rounded-xl p-8 border border-red-700 shadow-lg mb-8 text-center">
+                      <div className="text-red-400 text-lg font-semibold items-center justify-center gap-2">
+                        <div className="flex text-justify justify-center mb-5 gap-5 items-center">
+                          <div className="w-8 h-8 flex items-center justify-center">
+<svg
+                            className="w-12 h-12"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg></div>
+                          <div>
+                            Candidates who have not obtained 30% or above for
+                            the common general paper are not eligible for
+                            registration for the courses of study of the
+                            universities for which they have been selected based
+                            on the Z Score in the current academic year.
+                          </div>
+                        </div>
+                        <div className="flex text-justify justify-center mb-5 gap-5 items-center">
+                          <div className="w-8 h-8 flex items-center justify-center">
+<svg
+                            className="w-12 h-12"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg></div>
+                          <div>
+                            If such a candidate has obtained a minimum of 30% for
+                          the common general paper in a previous attempt within
+                          three attempts allowed for university admission, the
+                          previous achievement can be considered.
+                          </div>
+                          
+                        </div>
+                        <div className="flex text-justify justify-center mb-5 gap-5 items-center">
+                          <div className="w-8 h-8 flex items-center justify-center">
+<svg
+                            className="w-12 h-12"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg></div>
+                          <div>
+                            Candidates who have not obtained a minimum of 30%
+                          shall re-sit and obtain a minimum of 30% for the
+                          common general paper in a next available year within
+                          three attempts allowed for university admission, to be
+                          eligible to get registered for the courses of study of
+                          the universities for which the candidates have already
+                          been selected based on Z Score, in a future academic
+                          year.
+                          </div>
+                          
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Stream-Specific Results */}
+                      <div
+                        id="stream-universities"
+                        className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg mb-8"
+                      >
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-4">
+                              <svg
+                                className="w-5 h-5 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <h2 className="text-2xl font-bold text-white">
+                                Stream-Specific Recommendations
+                              </h2>
+                              <p className="text-gray-400">
+                                Your personalized university matches for{" "}
+                                {streamResults.length
+                                  ? streamResults[0]?.stream ||
+                                    values.personalInfo.stream
+                                  : values.personalInfo.stream}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handlePrint}
+                            className="bg-gray-700 hover:bg-gray-600 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                              />
+                            </svg>
+                            Print Results
+                          </button>
+                        </div>
+                        {streamResults.length > 0 ? (
+                          <div ref={streamTableRef}>
+                            <Table tableData={streamResults} />
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <div className="text-gray-400 text-lg">
+                              No stream-specific recommendations found
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cross Stream Results */}
+                      {showExtra && (
+                        <div
+                          id="cross-stream-universities"
+                          className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg"
+                        >
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-4">
+                                <svg
+                                  className="w-5 h-5 text-white"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                  />
+                                </svg>
+                              </div>
+                              <div>
+                                <h2 className="text-2xl font-bold text-white">
+                                  Cross Stream Recommendations
+                                </h2>
+                                <p className="text-gray-400">
+                                  Courses available to all streams
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          {crossStreamResults.length > 0 ? (
+                            <div ref={crossStreamTableRef}>
+                              <Table tableData={crossStreamResults} />
+                            </div>
+                          ) : (
+                            <div className="text-center py-12">
+                              <div className="text-gray-400 text-lg">
+                                No Cross Stream recommendations found
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Form>
+          )}
+        </Formik>
       </div>
-      
       <Footer />
     </>
   );
