@@ -115,6 +115,7 @@ cd Z-ScoreUniFinder
    pandas==2.2.3
    scikit-learn==1.5.2
    pydantic==2.9.2
+   lightgbm
    ```
 4. Ensure the dataset (`data/dataset.csv`) is in the `back-end/data/` directory (see [Dataset Requirements](#dataset-requirements)).
 
