@@ -123,7 +123,17 @@ cd Z-ScoreUniFinder
    pydantic==2.9.2
    lightgbm
    ```
-5. Ensure the dataset (`data/dataset.csv`) is in the `back-end/data/` directory (see [Dataset Requirements](#dataset-requirements)).
+   or
+   ```
+   pip install fastapi==0.115.2
+   pip install uvicorn==0.32.0
+   pip install pandas==2.2.3
+   pip install scikit-learn==1.5.2
+   pip install pydantic==2.9.2
+   pip install lightgbm
+   ```
+6. Ensure the dataset (`data/dataset.csv`) is in the `back-end/data/` directory (see [Dataset Requirements](#dataset-requirements)).
+7. If You Got error when try to train the model, Delete  `back-end/data/trained-model.pkl`  file
 
 ### 3. Set Up the Frontend
 1. Navigate to the frontend directory:
