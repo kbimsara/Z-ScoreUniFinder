@@ -201,7 +201,12 @@ python -c "import pandas as pd; data = [['Colombo', 'Physical Science', 'Enginee
    ```
 2. Activate the virtual environment:
    ```bash
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   #For  Linux
+   source venv/bin/activate
+   ```
+   ```bash
+   #For  Windows
+   venv\Scripts\activate
    ```
 3. Run the FastAPI server:
    ```bash
