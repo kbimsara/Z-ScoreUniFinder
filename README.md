@@ -90,7 +90,7 @@ Z-ScoreUniFinder/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/<your-username>/Z-ScoreUniFinder.git
+git clone https://github.com/kbimsara/Z-ScoreUniFinder.git
 cd Z-ScoreUniFinder
 ```
 
