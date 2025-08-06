@@ -101,10 +101,16 @@ cd Z-ScoreUniFinder
    ```
 2. Create a virtual environment and activate it:
    ```bash
+   #For Linux
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   source venv/bin/activate
    ```
-3. Install dependencies:
+   ```bash
+   #For Windows
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+4. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
@@ -117,7 +123,7 @@ cd Z-ScoreUniFinder
    pydantic==2.9.2
    lightgbm
    ```
-4. Ensure the dataset (`data/dataset.csv`) is in the `back-end/data/` directory (see [Dataset Requirements](#dataset-requirements)).
+5. Ensure the dataset (`data/dataset.csv`) is in the `back-end/data/` directory (see [Dataset Requirements](#dataset-requirements)).
 
 ### 3. Set Up the Frontend
 1. Navigate to the frontend directory:
